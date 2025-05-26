@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Secuenciación por Síntesis - Illumina</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    .cluster {
+      width: 24px;
+      height: 24px;
+      border-radius: 9999px;
+      display: inline-block;
+      margin: 2px;
+      font-size: 14px;
+      font-weight: bold;
+      color: white;
+      text-align: center;
+    }
+    .A { background-color: #ef4444; }
+    .T { background-color: #3b82f6; }
+    .C { background-color: #10b981; }
+    .G { background-color: #facc15; }
+  </style>
+</head>
+<body class="bg-gray-100 p-6">
+  <div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow">
+    <h1 class="text-2xl font-bold mb-2">🔬 Simulador de Secuenciación por Síntesis (Illumina)</h1>
+
+    <div class="mb-6">
+      <a href="index.html" class="inline-block bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition">⬅️ Volver al índice</a>
+    </div>
+
+    <div class="mb-4 space-x-2">
+      <button onclick="generarClusters()" class="bg-green-600 text-white px-4 py-2 rounded">🧬 Generar Flowcell</button>
+      <button onclick="iniciarCiclo()" class="bg-blue-600 text-white px-4 py-2 rounded">✨ Siguiente Ciclo</button>
+      <button onclick="modoAutomatico()" class="bg-purple-600 text-white px-4 py-2 rounded">▶️ Auto</button>
+      <button onclick="resetSimulacion()" class="bg-gray-500 text-white px-4 py-2 rounded">🔄 Reset</button>
+    </div>
+
+    <div id="flowcell" class="grid grid-cols-10 gap-2 mb-4"></div>
+
+    <div>
+      <h2 class="font-semibold mb-2">📈 Secuencias reconstruidas:</h2>
+      <div id="secuenciasReconstruidas" class="bg-gray-100 border p-2 rounded font-mono text-sm whitespace-pre-wrap"></div>
+    </div>
+  </div>
+
+  <script>
+    const nucleotidos = ['A', 'T', 'C', 'G'];
+    const numClusters = 100;
+    let clusters = [];
+    let cicloActual = 0;
+    let autoInterval = null;
+
+    function generarClusters() {
+      clusters = [];
+      cicloActual = 0;
+      clearInterval(autoInterval);
+      const container = document.getElementById("flowcell");
+      container.innerHTML = "";
+
+      for (let i = 0; i < numClusters; i++) {
+        const longitud = Math.floor(20 + Math.random() * 30); // entre 20 y 50
+        const secuencia = Array.from({length: longitud}, () => nucleotidos[Math.floor(Math.random() * 4)]);
+        clusters.push({ id: i, secuencia, leida: [] });
+
+        const div = document.createElement("div");
+        div.id = `cluster-${i}`;
+        div.className = "cluster bg-gray-300";
+        div.textContent = "";
+        container.appendChild(div);
+      }
+
+      document.getElementById("secuenciasReconstruidas").textContent = "";
+    }
+
+    function iniciarCiclo() {
+      if (clusters.length === 0) return alert("Primero genera la flowcell.");
+
+      let hayLectura = false;
+      clusters.forEach(cluster => {
+        if (cluster.leida.length < cluster.secuencia.length) {
+          const base = cluster.secuencia[cluster.leida.length];
+          cluster.leida.push(base);
+          const div = document.getElementById(`cluster-${cluster.id}`);
+          div.className = `cluster ${base}`;
+          div.textContent = base;
+          hayLectura = true;
+        }
+      });
+
+      if (!hayLectura && autoInterval) {
+        clearInterval(autoInterval);
+        alert("Secuenciación completa.");
+      }
+
+      cicloActual++;
+      actualizarSecuencias();
+    }
+
+    function modoAutomatico() {
+      if (clusters.length === 0) return alert("Genera la flowcell primero.");
+      clearInterval(autoInterval);
+      autoInterval = setInterval(iniciarCiclo, 300);
+    }
+
+    function actualizarSecuencias() {
+      const display = document.getElementById("secuenciasReconstruidas");
+      display.textContent = clusters.map(c => c.leida.join("")).join("\n");
+    }
+
+    function resetSimulacion() {
+      clusters = [];
+      cicloActual = 0;
+      clearInterval(autoInterval);
+      document.getElementById("flowcell").innerHTML = "";
+      document.getElementById("secuenciasReconstruidas").textContent = "";
+    }
+  </script>
+</body>
+</html>
