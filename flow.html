@@ -61,7 +61,7 @@
       container.innerHTML = "";
 
       for (let i = 0; i < numClusters; i++) {
-        const longitud = Math.floor(20 + Math.random() * 30); // entre 20 y 50
+        const longitud = Math.floor(20 + Math.random() * 60);
         const secuencia = Array.from({length: longitud}, () => nucleotidos[Math.floor(Math.random() * 4)]);
         clusters.push({ id: i, secuencia, leida: [] });
 
