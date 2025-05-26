@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulador de Librería Genómica</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    body { font-family: sans-serif; }
+    textarea { font-family: monospace; }
+    .fragmento-box { padding: 4px 8px; border-radius: 4px; margin: 2px; font-size: 12px; word-break: break-word; color: white; }
+    .amplificado-box { border: 2px solid #059669; }
+  </style>
+</head>
+<body class="bg-gray-100 p-6">
+  <div class="max-w-5xl mx-auto bg-white rounded-xl shadow-md p-6">
+    <h1 class="text-2xl font-bold mb-4">🔬 Simulador de Librería Genómica</h1>
+
+    <div class="mb-4">
+      <a href="https://www.ncbi.nlm.nih.gov/nuccore" target="_blank" class="inline-block bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">🌐 Ir a NCBI para buscar un gen (y obtener FASTA)</a>
+    </div>
+
+    <div class="mb-6">
+      <label class="block text-sm font-medium text-gray-700">1️⃣ Sube tu gen (.fasta):</label>
+      <input type="file" id="fastaFile" accept=".fasta,.fa" class="mt-2" />
+      <textarea id="fastaText" rows="5" class="w-full mt-2 p-2 border border-gray-300 rounded" placeholder="Secuencia cargada..."></textarea>
+    </div>
+
+    <div class="mb-6">
+      <label class="block text-sm font-medium text-gray-700">2️⃣ Fragmentación enzimática simulada:</label>
+      <button onclick="fragmentar()" class="mt-2 bg-blue-600 text-white px-4 py-2 rounded">Fragmentar secuencia</button>
+      <div id="fragmentosVisual" class="flex flex-wrap mt-4 gap-2"></div>
+    </div>
+
+    <div class="mb-6">
+      <label class="block text-sm font-medium text-gray-700">🧲 Purificación por tamaño (AMPure):</label>
+      <div class="flex items-center gap-4 mt-2">
+        <label>Tamaño objetivo (bp):</label>
+        <input type="number" id="tamañoPurificado" value="300" min="50" max="1000" class="border border-gray-300 p-1 rounded w-24" />
+        <button onclick="purificar()" class="bg-yellow-600 text-white px-4 py-2 rounded">Aplicar filtro</button>
+      </div>
+      <div id="purificadosVisual" class="flex flex-wrap mt-4 gap-2"></div>
+    </div>
+
+    <div class="mb-6">
+      <label class="block text-sm font-medium text-gray-700">4️⃣ Ligación de adaptadores:</label>
+      <button onclick="ligarAdaptadores()" class="mt-2 bg-pink-600 text-white px-4 py-2 rounded">Ligar adaptadores a fragmentos purificados</button>
+      <div id="adaptadosVisual" class="flex flex-wrap mt-4 gap-2"></div>
+    </div>
+
+    <div class="mb-6">
+      <label class="block text-sm font-medium text-gray-700">5️⃣ Amplificación por PCR:</label>
+      <div class="flex items-center gap-4 mt-2">
+        <label>Número de ciclos:</label>
+        <input type="number" id="ciclosPCR" value="3" min="1" max="10" class="border border-gray-300 p-1 rounded w-24" />
+        <button onclick="amplificar()" class="bg-purple-600 text-white px-4 py-2 rounded">Amplificar fragmentos</button>
+      </div>
+      <div id="amplificadosVisual" class="flex flex-wrap mt-4 gap-2"></div>
+    </div>
+
+    <div class="mb-6">
+      <label class="block text-sm font-medium text-gray-700">📊 Bioanalyzer - Distribución de tamaños:</label>
+      <canvas id="bioanalyzerChart" height="150"></canvas>
+    </div>
+  </div>
+
+  <script>
+    let secuenciaOriginal = "";
+    let fragmentos = [];
+    let purificados = [];
+    let adaptados = [];
+    const colores = ["#2563eb", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#14b8a6", "#db2777", "#7c3aed", "#f97316", "#0ea5e9"];
+    const ADAPTADOR_A = "ADAPT_A";
+    const ADAPTADOR_B = "ADAPT_B";
+
+    document.getElementById("fastaFile").addEventListener("change", function(e) {
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const text = event.target.result;
+        const lines = text.split("\n");
+        const sequence = lines.filter(line => !line.startsWith(">")).map(line => line.trim().toUpperCase()).filter(line => /^[ATCGN]+$/.test(line)).join("");
+        if (!sequence) {
+          alert("El archivo no contiene una secuencia FASTA válida (solo A, T, C, G, N).");
+          return;
+        }
+        secuenciaOriginal = sequence;
+        document.getElementById("fastaText").value = secuenciaOriginal;
+      };
+      reader.readAsText(e.target.files[0]);
+    });
+
+    function fragmentar() {
+      if (!secuenciaOriginal) return alert("Carga una secuencia válida.");
+      fragmentos = [];
+      for (let i = 0; i < secuenciaOriginal.length;) {
+        const randOffset = Math.floor(100 + Math.random() * 400);
+        fragmentos.push({ seq: secuenciaOriginal.substring(i, i + randOffset), color: colores[fragmentos.length % colores.length] });
+        i += randOffset;
+      }
+      const visual = document.getElementById("fragmentosVisual");
+      visual.innerHTML = "";
+      fragmentos.forEach((frag, i) => {
+        const box = document.createElement("div");
+        box.className = "fragmento-box";
+        box.style.background = frag.color;
+        box.textContent = `F${i + 1} (${frag.seq.length} bp)`;
+        visual.appendChild(box);
+      });
+    }
+
+    function purificar() {
+      const target = parseInt(document.getElementById("tamañoPurificado").value);
+      const min = Math.floor(target * 0.8);
+      const max = Math.ceil(target * 1.2);
+      purificados = fragmentos.filter(f => f.seq.length >= min && f.seq.length <= max);
+      const visual = document.getElementById("purificadosVisual");
+      visual.innerHTML = "";
+      purificados.forEach((frag, i) => {
+        const box = document.createElement("div");
+        box.className = "fragmento-box";
+        box.style.background = frag.color;
+        box.textContent = `F${i + 1} (${frag.seq.length} bp)`;
+        visual.appendChild(box);
+      });
+    }
+
+    function ligarAdaptadores() {
+      adaptados = purificados.map(frag => ({ ...frag, seq: `${ADAPTADOR_A}-${frag.seq}-${ADAPTADOR_B}` }));
+      const visual = document.getElementById("adaptadosVisual");
+      visual.innerHTML = "";
+      adaptados.forEach((frag, i) => {
+        const box = document.createElement("div");
+        box.className = "fragmento-box";
+        box.style.background = frag.color;
+        box.textContent = `F${i + 1}: ${frag.seq}`;
+        visual.appendChild(box);
+      });
+    }
+
+    function amplificar() {
+      if (!adaptados.length) return alert("Primero debes ligar los adaptadores.");
+      const ciclos = parseInt(document.getElementById("ciclosPCR").value);
+      if (isNaN(ciclos) || ciclos < 1 || ciclos > 10) return alert("Número de ciclos inválido (debe estar entre 1 y 10).");
+      const visual = document.getElementById("amplificadosVisual");
+      visual.innerHTML = "";
+      const amplifiedCounts = {};
+      adaptados.forEach((frag, i) => {
+        const numCopies = Math.pow(2, ciclos);
+        const len = frag.seq.length - ADAPTADOR_A.length - ADAPTADOR_B.length - 2;
+        const bin = Math.floor(len / 25) * 25;
+        amplifiedCounts[bin] = (amplifiedCounts[bin] || 0) + numCopies;
+        for (let j = 0; j < Math.min(10, numCopies); j++) {
+          const box = document.createElement("div");
+          box.className = "fragmento-box amplificado-box";
+          box.style.background = frag.color;
+          box.textContent = `F${i + 1}_cop${j + 1}`;
+          visual.appendChild(box);
+        }
+      });
+      const labels = Object.keys(amplifiedCounts).sort((a, b) => a - b);
+      const data = labels.map(bin => amplifiedCounts[bin]);
+      const ctx = document.getElementById('bioanalyzerChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels.map(bin => `${bin}-${parseInt(bin)+24} bp`),
+          datasets: [{ label: 'Copias por tamaño de fragmento', data: data, backgroundColor: '#3b82f6' }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { title: { display: true, text: 'Tamaño (bp)' } },
+            y: { title: { display: true, text: 'Número de copias' } }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
