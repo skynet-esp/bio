@@ -28,7 +28,7 @@
       font-size: 12px;
       color: red;
     }
-    .N { background-color: #e5e7eb; color: #000; border: 1px dashed #000; }
+    .N { background-color: #e5e7eb; color: red; font-weight: bold; border: 1px dashed red; }
   </style>
 </head>
 <body class="bg-gray-100 p-6">
@@ -48,7 +48,7 @@
       <div id="zonaLecturas" class="space-y-1 mb-6"></div>
       <div>
         <h2 class="font-semibold">🧬 Consenso reconstruido:</h2>
-        <div id="consenso" class="mt-2 text-base font-mono text-green-700"></div>
+        <div id="consenso" class="mt-2 text-base font-mono"></div>
         <div id="mutaciones" class="mt-4 text-sm text-red-700 whitespace-pre-line"></div>
       </div>
     </div>
@@ -100,7 +100,7 @@
 
     async function iniciarAnimacion() {
       document.getElementById("zonaLecturas").innerHTML = "";
-      document.getElementById("consenso").textContent = "";
+      document.getElementById("consenso").innerHTML = "";
       document.getElementById("mutaciones").textContent = "";
 
       const refDiv = document.getElementById("referencia");
@@ -134,38 +134,46 @@
         }
       }
 
-      let consenso = "";
       let infoMutaciones = [];
+      const consensoDiv = document.getElementById("consenso");
 
       for (let i = 0; i < acumulador.length; i++) {
         const col = acumulador[i];
+        const span = document.createElement("span");
+
         if (col.length === 0) {
-          consenso += "-";
+          span.textContent = "-";
+          consensoDiv.appendChild(span);
           continue;
         }
+
         const cuenta = {};
         for (let b of col) cuenta[b] = (cuenta[b] || 0) + 1;
         const ordenadas = Object.entries(cuenta).sort((a, b) => b[1] - a[1]);
 
         const topBase = ordenadas[0];
-        const porcentaje = ((topBase[1] / col.length) * 100).toFixed(1);
+        const porcentaje = (topBase[1] / col.length) * 100;
 
-        let baseFinal = topBase[0];
-        if (ordenadas.length > 1 && porcentaje < 80) {
-          baseFinal = "N";
-        }
-
-        consenso += baseFinal;
-
+        let mostrarN = false;
         for (let [base, count] of ordenadas) {
           const freq = (count / col.length) * 100;
           if (base !== referencia[i] && freq >= 10) {
+            mostrarN = true;
             infoMutaciones.push(`Posición ${i + 1}: ${referencia[i]} → ${base} (${freq.toFixed(1)}%)`);
           }
         }
+
+        if (mostrarN) {
+          span.textContent = "N";
+          span.className = "base N";
+        } else {
+          span.textContent = topBase[0];
+          span.className = `base ${topBase[0]}`;
+        }
+
+        consensoDiv.appendChild(span);
       }
 
-      document.getElementById("consenso").textContent = consenso;
       if (infoMutaciones.length > 0) {
         document.getElementById("mutaciones").textContent = `⚠️ Mutaciones detectadas:\n` + infoMutaciones.join("\n");
       }
