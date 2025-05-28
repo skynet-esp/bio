@@ -1,203 +1,175 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>🧲 Captura por Sondas + PCR</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visualización Dinámica de Alineamiento</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <style>
-    .capturada {
-      background-color: #bbf7d0;
-      border-left: 4px solid #059669;
+    .base {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      margin-right: 2px;
+      text-align: center;
+      font-weight: bold;
+      font-family: monospace;
     }
-    .descartada {
-      background-color: #fecaca;
-      border-left: 4px solid #b91c1c;
-      text-decoration: line-through;
-      color: #991b1b;
-      animation: desintegrar 1s ease forwards;
+    .A { background-color: #ef4444; color: white; }
+    .T { background-color: #3b82f6; color: white; }
+    .C { background-color: #10b981; color: white; }
+    .G { background-color: #facc15; color: black; }
+    .MUT { background-color: #9ca3af; color: white; border: 2px solid black; position: relative; }
+    .MUT::after {
+      content: '*';
+      position: absolute;
+      top: -10px;
+      right: -5px;
+      font-size: 12px;
+      color: red;
     }
-    .lectura {
-      transition: opacity 0.4s ease;
-      opacity: 0;
-    }
-    .lectura.visible {
-      opacity: 1;
-    }
-    @keyframes desintegrar {
-      0% { opacity: 1; transform: scale(1); }
-      100% { opacity: 0.2; transform: scale(0.95) rotate(-1deg); }
-    }
+    .N { background-color: #e5e7eb; color: #000; border: 1px dashed #000; }
   </style>
 </head>
 <body class="bg-gray-100 p-6">
-  <div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow">
+  <div class="max-w-5xl mx-auto bg-white p-6 rounded-xl shadow">
+    <h1 class="text-2xl font-bold mb-4">🧬 Alineamiento Dinámico de Lecturas</h1>
+
     <div class="mb-6">
       <a href="index.html" class="inline-block bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition">⬅️ Volver al índice</a>
     </div>
-    <h1 class="text-2xl font-bold mb-4">🧲 Simulador de Captura por Sondas + PCR</h1>
 
     <div class="mb-4">
-      <button onclick="iniciarCaptura()" class="bg-purple-600 text-white px-4 py-2 rounded">▶️ Ejecutar Captura</button>
+      <button onclick="iniciarAnimacion()" class="bg-blue-600 text-white px-4 py-2 rounded">▶️ Iniciar Simulación</button>
     </div>
 
-    <div class="w-full bg-gray-200 rounded h-4 mb-4 overflow-hidden">
-      <div id="barraProgreso" class="bg-purple-600 h-4 transition-all duration-200" style="width: 0%"></div>
+    <div class="font-mono text-sm mb-4">
+      <div id="referencia" class="mb-2"></div>
+      <div id="zonaLecturas" class="space-y-1 mb-6"></div>
+      <div>
+        <h2 class="font-semibold">🧬 Consenso reconstruido:</h2>
+        <div id="consenso" class="mt-2 text-base font-mono text-green-700"></div>
+        <div id="mutaciones" class="mt-4 text-sm text-red-700 whitespace-pre-line"></div>
+      </div>
     </div>
-
-    <div class="mb-4">
-      <h2 class="font-semibold">🔍 Sondas utilizadas:</h2>
-      <ul id="listaSondas" class="list-disc ml-6 text-sm text-gray-700"></ul>
-    </div>
-
-    <div>
-      <h2 class="font-semibold mb-2">📄 Lecturas capturadas:</h2>
-      <div id="resultadoCaptura" class="font-mono text-sm whitespace-pre-wrap space-y-1"></div>
-    </div>
-
-    <button id="btnPCR" class="mt-4 bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition hidden">🧬 Ejecutar PCR</button>
-    <div id="resultadoPCR" class="mt-4 font-mono text-sm whitespace-pre-wrap space-y-1"></div>
   </div>
 
   <script>
-    const sondas = [
-      { secuencia: "GCTAGCTAG", gen: "TP53" },
-      { secuencia: "ACCGTATAA", gen: "BRCA1" },
-      { secuencia: "TAGGCTAGC", gen: "EGFR" }
-    ];
+    const referencia = "ATCGTAGGCTAGCTAGGCTACCGTATAACGTAGTGTG";
+    const lecturas = Array.from({length: 30}, () => generarLecturaConMutacion());
 
-    let todasLecturas = [];
-    let lecturasCapturadas = [];
-
-    function generarLecturaAleatoria() {
-      const bases = ['A', 'T', 'C', 'G'];
-      const longitud = 18 + Math.floor(Math.random() * 10);
-      return Array.from({ length: longitud }, () => bases[Math.floor(Math.random() * 4)]).join("");
+    function generarLecturaConMutacion() {
+      const longitud = 15 + Math.floor(Math.random() * 6);
+      const inicio = Math.floor(Math.random() * (referencia.length - longitud));
+      let sub = referencia.slice(inicio, inicio + longitud).split("");
+      if (Math.random() < 0.3) {
+        const pos = Math.floor(Math.random() * sub.length);
+        const bases = ['A', 'T', 'C', 'G'].filter(b => b !== sub[pos]);
+        sub[pos] = bases[Math.floor(Math.random() * 3)];
+      }
+      return sub.join("");
     }
 
-    function insertarSondaInyectada(sonda) {
-      const bases = ['A', 'T', 'C', 'G'];
-      const pre = Array.from({ length: 5 }, () => bases[Math.floor(Math.random() * 4)]).join("");
-      const post = Array.from({ length: 5 }, () => bases[Math.floor(Math.random() * 4)]).join("");
-      return pre + sonda + post;
+    function delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    function prepararLecturas() {
-      const aleatorias = Array.from({ length: 40 }, () => generarLecturaAleatoria());
-      const inyectadas = sondas.map(s => insertarSondaInyectada(s.secuencia));
-      todasLecturas = [];
-      while (aleatorias.length > 0 || inyectadas.length > 0) {
-        if (Math.random() < 0.4 && inyectadas.length > 0) {
-          todasLecturas.push(inyectadas.pop());
-        } else if (aleatorias.length > 0) {
-          todasLecturas.push(aleatorias.pop());
+    function crearBase(letra, esMutacion = false) {
+      const span = document.createElement("span");
+      span.className = `base ${esMutacion ? 'MUT' : letra}`;
+      span.textContent = letra;
+      return span;
+    }
+
+    function encontrarMejorPosicion(lectura, referencia) {
+      let mejorPos = 0;
+      let mejorScore = -Infinity;
+      for (let i = 0; i <= referencia.length - lectura.length; i++) {
+        let score = 0;
+        for (let j = 0; j < lectura.length; j++) {
+          if (lectura[j] === referencia[i + j]) score++;
+          else score--;
+        }
+        if (score > mejorScore) {
+          mejorScore = score;
+          mejorPos = i;
         }
       }
+      return mejorPos;
     }
 
-    function iniciarCaptura() {
-      prepararLecturas();
-      const container = document.getElementById("resultadoCaptura");
-      const lista = document.getElementById("listaSondas");
-      const barra = document.getElementById("barraProgreso");
-      const btnPCR = document.getElementById("btnPCR");
-      const resultadoPCR = document.getElementById("resultadoPCR");
+    async function iniciarAnimacion() {
+      document.getElementById("zonaLecturas").innerHTML = "";
+      document.getElementById("consenso").textContent = "";
+      document.getElementById("mutaciones").textContent = "";
 
-      container.innerHTML = "";
-      resultadoPCR.innerHTML = "";
-      barra.style.width = "0%";
-      btnPCR.classList.add("hidden");
-      lecturasCapturadas = [];
+      const refDiv = document.getElementById("referencia");
+      refDiv.innerHTML = "";
+      referencia.split("").forEach(letra => refDiv.appendChild(crearBase(letra)));
 
-      lista.innerHTML = sondas.map(s => `<li>${s.secuencia} <span class="text-gray-500">(${s.gen})</span></li>`).join("");
+      const cobertura = Array(referencia.length).fill(0);
+      const acumulador = Array(referencia.length).fill(null).map(() => []);
 
-      let capturadas = 0;
-      let i = 0;
+      for (let i = 0; i < lecturas.length; i++) {
+        const lectura = lecturas[i];
+        const fila = document.createElement("div");
+        const offset = encontrarMejorPosicion(lectura, referencia);
 
-      function mostrarUnaLectura() {
-        if (i >= todasLecturas.length) {
-          const resumen = document.createElement("div");
-          resumen.className = "mt-4 text-sm text-gray-700";
-          resumen.innerHTML = `✅ Lecturas capturadas: <strong>${capturadas}</strong> de ${todasLecturas.length} (${((capturadas / todasLecturas.length) * 100).toFixed(1)}%)`;
-
-          const btnReiniciar = document.createElement("button");
-          btnReiniciar.textContent = "🔁 Repetir captura";
-          btnReiniciar.className = "mt-2 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition";
-          btnReiniciar.onclick = iniciarCaptura;
-          resumen.appendChild(btnReiniciar);
-          container.appendChild(resumen);
-
-          if (lecturasCapturadas.length > 0) btnPCR.classList.remove("hidden");
-          return;
+        for (let j = 0; j < offset; j++) {
+          fila.appendChild(document.createElement("span")).className = "base";
         }
 
-        const lectura = todasLecturas[i];
-        const div = document.createElement("div");
-        div.className = "lectura p-1 rounded";
+        document.getElementById("zonaLecturas").appendChild(fila);
 
-        let capturada = false;
-        let matchHtml = lectura;
-
-        for (const s of sondas) {
-          const index = lectura.indexOf(s.secuencia);
-          if (index !== -1) {
-            capturada = true;
-            matchHtml = lectura.slice(0, index) +
-              '<span class="underline font-bold">' + s.secuencia + '</span>' +
-              lectura.slice(index + s.secuencia.length);
-            lecturasCapturadas.push({ lectura, sonda: s.secuencia, gen: s.gen });
-            break;
+        for (let j = 0; j < lectura.length; j++) {
+          await delay(120);
+          const refBase = referencia[offset + j];
+          const base = lectura[j];
+          const esMutacion = base !== refBase;
+          fila.appendChild(crearBase(base, esMutacion));
+          if (offset + j < cobertura.length) {
+            cobertura[offset + j]++;
+            acumulador[offset + j].push(base);
           }
         }
-
-        div.innerHTML = capturada ? '🧲 ' + matchHtml : matchHtml;
-        div.classList.add(capturada ? "capturada" : "descartada");
-        container.appendChild(div);
-        setTimeout(() => div.classList.add("visible"), 10);
-
-        if (capturada) capturadas++;
-        i++;
-        barra.style.width = `${(i / todasLecturas.length) * 100}%`;
-        setTimeout(mostrarUnaLectura, 100);
       }
 
-      mostrarUnaLectura();
-    }
+      let consenso = "";
+      let infoMutaciones = [];
 
-    document.getElementById("btnPCR").addEventListener("click", () => {
-      const resultadoPCR = document.getElementById("resultadoPCR");
-      resultadoPCR.innerHTML = "<h3 class='font-semibold mb-2'>🧬 Resultados de PCR post-captura:</h3>";
+      for (let i = 0; i < acumulador.length; i++) {
+        const col = acumulador[i];
+        if (col.length === 0) {
+          consenso += "-";
+          continue;
+        }
+        const cuenta = {};
+        for (let b of col) cuenta[b] = (cuenta[b] || 0) + 1;
+        const ordenadas = Object.entries(cuenta).sort((a, b) => b[1] - a[1]);
 
-      lecturasCapturadas.forEach((obj) => {
-        const contenedor = document.createElement("div");
-        contenedor.className = "mb-4";
+        const topBase = ordenadas[0];
+        const porcentaje = ((topBase[1] / col.length) * 100).toFixed(1);
 
-        const titulo = document.createElement("div");
-        titulo.className = "font-bold text-gray-800 mb-1";
-        titulo.textContent = `Gen ${obj.gen} - Sonda ${obj.sonda}`;
-        contenedor.appendChild(titulo);
-
-        const exito = Math.random() > 0.1;
-
-        if (exito) {
-          const numCopias = 3 + Math.floor(Math.random() * 3);
-          for (let i = 0; i < numCopias; i++) {
-            const copia = document.createElement("div");
-            const amplificada = obj.lectura.replace(obj.sonda, `🔥${obj.sonda}🔥`);
-            copia.textContent = amplificada;
-            copia.className = "text-green-700 font-mono text-sm";
-            contenedor.appendChild(copia);
-          }
-        } else {
-          const fallo = document.createElement("div");
-          fallo.textContent = `🟥 Fallo de amplificación`;
-          fallo.className = "text-red-600 font-semibold";
-          contenedor.appendChild(fallo);
+        let baseFinal = topBase[0];
+        if (ordenadas.length > 1 && porcentaje < 80) {
+          baseFinal = "N";
         }
 
-        resultadoPCR.appendChild(contenedor);
-      });
-    });
+        consenso += baseFinal;
+
+        for (let [base, count] of ordenadas) {
+          const freq = (count / col.length) * 100;
+          if (base !== referencia[i] && freq >= 10) {
+            infoMutaciones.push(`Posición ${i + 1}: ${referencia[i]} → ${base} (${freq.toFixed(1)}%)`);
+          }
+        }
+      }
+
+      document.getElementById("consenso").textContent = consenso;
+      if (infoMutaciones.length > 0) {
+        document.getElementById("mutaciones").textContent = `⚠️ Mutaciones detectadas:\n` + infoMutaciones.join("\n");
+      }
+    }
   </script>
 </body>
 </html>
