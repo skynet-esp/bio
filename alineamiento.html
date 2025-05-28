@@ -28,7 +28,7 @@
       font-size: 12px;
       color: red;
     }
-    .N { background-color: #e5e7eb; color: red; font-weight: bold; border: 1px dashed red; }
+    .N { background-color: #e5e7eb; color: red; font-weight: bold; border: 1px dashed red !important; }
   </style>
 </head>
 <body class="bg-gray-100 p-6">
@@ -62,10 +62,11 @@
       const longitud = 15 + Math.floor(Math.random() * 6);
       const inicio = Math.floor(Math.random() * (referencia.length - longitud));
       let sub = referencia.slice(inicio, inicio + longitud).split("");
-      if (Math.random() < 0.3) {
+      if (Math.random() < 0.4) {
         const pos = Math.floor(Math.random() * sub.length);
+        const mutacionForzada = Math.random() < 0.4;
         const bases = ['A', 'T', 'C', 'G'].filter(b => b !== sub[pos]);
-        sub[pos] = bases[Math.floor(Math.random() * 3)];
+        sub[pos] = mutacionForzada ? 'G' : bases[Math.floor(Math.random() * 3)];
       }
       return sub.join("");
     }
@@ -122,7 +123,7 @@
         document.getElementById("zonaLecturas").appendChild(fila);
 
         for (let j = 0; j < lectura.length; j++) {
-          await delay(120);
+          await delay(60);
           const refBase = referencia[offset + j];
           const base = lectura[j];
           const esMutacion = base !== refBase;
@@ -155,7 +156,7 @@
         let mostrarN = false;
         for (let [base, count] of ordenadas) {
           const freq = (count / col.length) * 100;
-          if (base !== referencia[i] && freq >= 10) {
+          if (base !== referencia[i] && freq >= 5) {
             mostrarN = true;
             infoMutaciones.push(`Posición ${i + 1}: ${referencia[i]} → ${base} (${freq.toFixed(1)}%)`);
           }
