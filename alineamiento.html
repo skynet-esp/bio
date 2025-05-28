@@ -48,7 +48,7 @@
       <div id="zonaLecturas" class="space-y-1 mb-6"></div>
       <div>
         <h2 class="font-semibold">🧬 Consenso reconstruido:</h2>
-        <div id="consenso" class="mt-2 text-base font-mono"></div>
+        <div id="consenso" class="mt-2 text-base font-mono flex flex-wrap"></div>
         <div id="mutaciones" class="mt-4 text-sm text-red-700 whitespace-pre-line"></div>
       </div>
     </div>
@@ -140,6 +140,7 @@
       for (let i = 0; i < acumulador.length; i++) {
         const col = acumulador[i];
         const span = document.createElement("span");
+        span.classList.add("base");
 
         if (col.length === 0) {
           span.textContent = "-";
@@ -150,9 +151,6 @@
         const cuenta = {};
         for (let b of col) cuenta[b] = (cuenta[b] || 0) + 1;
         const ordenadas = Object.entries(cuenta).sort((a, b) => b[1] - a[1]);
-
-        const topBase = ordenadas[0];
-        const porcentaje = (topBase[1] / col.length) * 100;
 
         let mostrarN = false;
         for (let [base, count] of ordenadas) {
@@ -165,10 +163,10 @@
 
         if (mostrarN) {
           span.textContent = "N";
-          span.className = "base N";
+          span.classList.add("N");
         } else {
-          span.textContent = topBase[0];
-          span.className = `base ${topBase[0]}`;
+          span.textContent = ordenadas[0][0];
+          span.classList.add(ordenadas[0][0]);
         }
 
         consensoDiv.appendChild(span);
