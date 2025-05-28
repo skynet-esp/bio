@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🧲 Captura por Sondas + PCR</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+  <style>
+    .capturada {
+      background-color: #bbf7d0;
+      border-left: 4px solid #059669;
+    }
+    .descartada {
+      background-color: #fecaca;
+      border-left: 4px solid #b91c1c;
+      text-decoration: line-through;
+      color: #991b1b;
+      animation: desintegrar 1s ease forwards;
+    }
+    .lectura {
+      transition: opacity 0.4s ease;
+      opacity: 0;
+    }
+    .lectura.visible {
+      opacity: 1;
+    }
+    @keyframes desintegrar {
+      0% { opacity: 1; transform: scale(1); }
+      100% { opacity: 0.2; transform: scale(0.95) rotate(-1deg); }
+    }
+  </style>
+</head>
+<body class="bg-gray-100 p-6">
+  <div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow">
+    <div class="mb-6">
+      <a href="index.html" class="inline-block bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition">⬅️ Volver al índice</a>
+    </div>
+    <h1 class="text-2xl font-bold mb-4">🧲 Simulador de Captura por Sondas + PCR</h1>
+
+    <div class="mb-4">
+      <button onclick="iniciarCaptura()" class="bg-purple-600 text-white px-4 py-2 rounded">▶️ Ejecutar Captura</button>
+    </div>
+
+    <div class="w-full bg-gray-200 rounded h-4 mb-4 overflow-hidden">
+      <div id="barraProgreso" class="bg-purple-600 h-4 transition-all duration-200" style="width: 0%"></div>
+    </div>
+
+    <div class="mb-4">
+      <h2 class="font-semibold">🔍 Sondas utilizadas:</h2>
+      <ul id="listaSondas" class="list-disc ml-6 text-sm text-gray-700"></ul>
+    </div>
+
+    <div>
+      <h2 class="font-semibold mb-2">📄 Lecturas capturadas:</h2>
+      <div id="resultadoCaptura" class="font-mono text-sm whitespace-pre-wrap space-y-1"></div>
+    </div>
+
+    <button id="btnPCR" class="mt-4 bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition hidden">🧬 Ejecutar PCR</button>
+    <div id="resultadoPCR" class="mt-4 font-mono text-sm whitespace-pre-wrap space-y-1"></div>
+  </div>
+
+  <script>
+    const sondas = [
+      { secuencia: "GCTAGCTAG", gen: "TP53" },
+      { secuencia: "ACCGTATAA", gen: "BRCA1" },
+      { secuencia: "TAGGCTAGC", gen: "EGFR" }
+    ];
+
+    let todasLecturas = [];
+    let lecturasCapturadas = [];
+
+    function generarLecturaAleatoria() {
+      const bases = ['A', 'T', 'C', 'G'];
+      const longitud = 18 + Math.floor(Math.random() * 10);
+      return Array.from({ length: longitud }, () => bases[Math.floor(Math.random() * 4)]).join("");
+    }
+
+    function insertarSondaInyectada(sonda) {
+      const bases = ['A', 'T', 'C', 'G'];
+      const pre = Array.from({ length: 5 }, () => bases[Math.floor(Math.random() * 4)]).join("");
+      const post = Array.from({ length: 5 }, () => bases[Math.floor(Math.random() * 4)]).join("");
+      return pre + sonda + post;
+    }
+
+    function prepararLecturas() {
+      const aleatorias = Array.from({ length: 40 }, () => generarLecturaAleatoria());
+      const inyectadas = sondas.map(s => insertarSondaInyectada(s.secuencia));
+      todasLecturas = [];
+      while (aleatorias.length > 0 || inyectadas.length > 0) {
+        if (Math.random() < 0.4 && inyectadas.length > 0) {
+          todasLecturas.push(inyectadas.pop());
+        } else if (aleatorias.length > 0) {
+          todasLecturas.push(aleatorias.pop());
+        }
+      }
+    }
+
+    function iniciarCaptura() {
+      prepararLecturas();
+      const container = document.getElementById("resultadoCaptura");
+      const lista = document.getElementById("listaSondas");
+      const barra = document.getElementById("barraProgreso");
+      const btnPCR = document.getElementById("btnPCR");
+      const resultadoPCR = document.getElementById("resultadoPCR");
+
+      container.innerHTML = "";
+      resultadoPCR.innerHTML = "";
+      barra.style.width = "0%";
+      btnPCR.classList.add("hidden");
+      lecturasCapturadas = [];
+
+      lista.innerHTML = sondas.map(s => `<li>${s.secuencia} <span class="text-gray-500">(${s.gen})</span></li>`).join("");
+
+      let capturadas = 0;
+      let i = 0;
+
+      function mostrarUnaLectura() {
+        if (i >= todasLecturas.length) {
+          const resumen = document.createElement("div");
+          resumen.className = "mt-4 text-sm text-gray-700";
+          resumen.innerHTML = `✅ Lecturas capturadas: <strong>${capturadas}</strong> de ${todasLecturas.length} (${((capturadas / todasLecturas.length) * 100).toFixed(1)}%)`;
+
+          const btnReiniciar = document.createElement("button");
+          btnReiniciar.textContent = "🔁 Repetir captura";
+          btnReiniciar.className = "mt-2 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition";
+          btnReiniciar.onclick = iniciarCaptura;
+          resumen.appendChild(btnReiniciar);
+          container.appendChild(resumen);
+
+          if (lecturasCapturadas.length > 0) btnPCR.classList.remove("hidden");
+          return;
+        }
+
+        const lectura = todasLecturas[i];
+        const div = document.createElement("div");
+        div.className = "lectura p-1 rounded";
+
+        let capturada = false;
+        let matchHtml = lectura;
+
+        for (const s of sondas) {
+          const index = lectura.indexOf(s.secuencia);
+          if (index !== -1) {
+            capturada = true;
+            matchHtml = lectura.slice(0, index) +
+              '<span class="underline font-bold">' + s.secuencia + '</span>' +
+              lectura.slice(index + s.secuencia.length);
+            lecturasCapturadas.push({ lectura, sonda: s.secuencia, gen: s.gen });
+            break;
+          }
+        }
+
+        div.innerHTML = capturada ? '🧲 ' + matchHtml : matchHtml;
+        div.classList.add(capturada ? "capturada" : "descartada");
+        container.appendChild(div);
+        setTimeout(() => div.classList.add("visible"), 10);
+
+        if (capturada) capturadas++;
+        i++;
+        barra.style.width = `${(i / todasLecturas.length) * 100}%`;
+        setTimeout(mostrarUnaLectura, 100);
+      }
+
+      mostrarUnaLectura();
+    }
+
+    document.getElementById("btnPCR").addEventListener("click", () => {
+      const resultadoPCR = document.getElementById("resultadoPCR");
+      resultadoPCR.innerHTML = "<h3 class='font-semibold mb-2'>🧬 Resultados de PCR post-captura:</h3>";
+
+      lecturasCapturadas.forEach((obj) => {
+        const contenedor = document.createElement("div");
+        contenedor.className = "mb-4";
+
+        const titulo = document.createElement("div");
+        titulo.className = "font-bold text-gray-800 mb-1";
+        titulo.textContent = `Gen ${obj.gen} - Sonda ${obj.sonda}`;
+        contenedor.appendChild(titulo);
+
+        const exito = Math.random() > 0.1;
+
+        if (exito) {
+          const numCopias = 3 + Math.floor(Math.random() * 3);
+          for (let i = 0; i < numCopias; i++) {
+            const copia = document.createElement("div");
+            const amplificada = obj.lectura.replace(obj.sonda, `🔥${obj.sonda}🔥`);
+            copia.textContent = amplificada;
+            copia.className = "text-green-700 font-mono text-sm";
+            contenedor.appendChild(copia);
+          }
+        } else {
+          const fallo = document.createElement("div");
+          fallo.textContent = `🟥 Fallo de amplificación`;
+          fallo.className = "text-red-600 font-semibold";
+          contenedor.appendChild(fallo);
+        }
+
+        resultadoPCR.appendChild(contenedor);
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visualización Dinámica de Alineamiento</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    .base {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      margin-right: 2px;
+      text-align: center;
+      font-weight: bold;
+      font-family: monospace;
+    }
+    .A { background-color: #ef4444; color: white; }
+    .T { background-color: #3b82f6; color: white; }
+    .C { background-color: #10b981; color: white; }
+    .G { background-color: #facc15; color: black; }
+    .MUT { background-color: #9ca3af; color: white; border: 2px solid black; position: relative; }
+    .MUT::after {
+      content: '*';
+      position: absolute;
+      top: -10px;
+      right: -5px;
+      font-size: 12px;
+      color: red;
+    }
+    .N { background-color: #e5e7eb; color: #000; border: 1px dashed #000; }
+  </style>
+</head>
+<body class="bg-gray-100 p-6">
+  <div class="max-w-5xl mx-auto bg-white p-6 rounded-xl shadow">
+    <h1 class="text-2xl font-bold mb-4">🧬 Alineamiento Dinámico de Lecturas</h1>
+
+    <div class="mb-6">
+      <a href="index.html" class="inline-block bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition">⬅️ Volver al índice</a>
+    </div>
+
+    <div class="mb-4">
+      <button onclick="iniciarAnimacion()" class="bg-blue-600 text-white px-4 py-2 rounded">▶️ Iniciar Simulación</button>
+    </div>
+
+    <div class="font-mono text-sm mb-4">
+      <div id="referencia" class="mb-2"></div>
+      <div id="zonaLecturas" class="space-y-1 mb-6"></div>
+      <div>
+        <h2 class="font-semibold">🧬 Consenso reconstruido:</h2>
+        <div id="consenso" class="mt-2 text-base font-mono text-green-700"></div>
+        <div id="mutaciones" class="mt-4 text-sm text-red-700 whitespace-pre-line"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const referencia = "ATCGTAGGCTAGCTAGGCTACCGTATAACGTAGTGTG";
+    const lecturas = Array.from({length: 30}, () => generarLecturaConMutacion());
+
+    function generarLecturaConMutacion() {
+      const longitud = 15 + Math.floor(Math.random() * 6);
+      const inicio = Math.floor(Math.random() * (referencia.length - longitud));
+      let sub = referencia.slice(inicio, inicio + longitud).split("");
+      if (Math.random() < 0.3) {
+        const pos = Math.floor(Math.random() * sub.length);
+        const bases = ['A', 'T', 'C', 'G'].filter(b => b !== sub[pos]);
+        sub[pos] = bases[Math.floor(Math.random() * 3)];
+      }
+      return sub.join("");
+    }
+
+    function delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function crearBase(letra, esMutacion = false) {
+      const span = document.createElement("span");
+      span.className = `base ${esMutacion ? 'MUT' : letra}`;
+      span.textContent = letra;
+      return span;
+    }
+
+    function encontrarMejorPosicion(lectura, referencia) {
+      let mejorPos = 0;
+      let mejorScore = -Infinity;
+      for (let i = 0; i <= referencia.length - lectura.length; i++) {
+        let score = 0;
+        for (let j = 0; j < lectura.length; j++) {
+          if (lectura[j] === referencia[i + j]) score++;
+          else score--;
+        }
+        if (score > mejorScore) {
+          mejorScore = score;
+          mejorPos = i;
+        }
+      }
+      return mejorPos;
+    }
+
+    async function iniciarAnimacion() {
+      document.getElementById("zonaLecturas").innerHTML = "";
+      document.getElementById("consenso").textContent = "";
+      document.getElementById("mutaciones").textContent = "";
+
+      const refDiv = document.getElementById("referencia");
+      refDiv.innerHTML = "";
+      referencia.split("").forEach(letra => refDiv.appendChild(crearBase(letra)));
+
+      const cobertura = Array(referencia.length).fill(0);
+      const acumulador = Array(referencia.length).fill(null).map(() => []);
+
+      for (let i = 0; i < lecturas.length; i++) {
+        const lectura = lecturas[i];
+        const fila = document.createElement("div");
+        const offset = encontrarMejorPosicion(lectura, referencia);
+
+        for (let j = 0; j < offset; j++) {
+          fila.appendChild(document.createElement("span")).className = "base";
+        }
+
+        document.getElementById("zonaLecturas").appendChild(fila);
+
+        for (let j = 0; j < lectura.length; j++) {
+          await delay(120);
+          const refBase = referencia[offset + j];
+          const base = lectura[j];
+          const esMutacion = base !== refBase;
+          fila.appendChild(crearBase(base, esMutacion));
+          if (offset + j < cobertura.length) {
+            cobertura[offset + j]++;
+            acumulador[offset + j].push(base);
+          }
+        }
+      }
+
+      let consenso = "";
+      let infoMutaciones = [];
+
+      for (let i = 0; i < acumulador.length; i++) {
+        const col = acumulador[i];
+        if (col.length === 0) {
+          consenso += "-";
+          continue;
+        }
+        const cuenta = {};
+        for (let b of col) cuenta[b] = (cuenta[b] || 0) + 1;
+        const ordenadas = Object.entries(cuenta).sort((a, b) => b[1] - a[1]);
+
+        const topBase = ordenadas[0];
+        const porcentaje = ((topBase[1] / col.length) * 100).toFixed(1);
+
+        let baseFinal = topBase[0];
+        if (ordenadas.length > 1 && porcentaje < 80) {
+          baseFinal = "N";
+        }
+
+        consenso += baseFinal;
+
+        for (let [base, count] of ordenadas) {
+          const freq = (count / col.length) * 100;
+          if (base !== referencia[i] && freq >= 10) {
+            infoMutaciones.push(`Posición ${i + 1}: ${referencia[i]} → ${base} (${freq.toFixed(1)}%)`);
+          }
+        }
+      }
+
+      document.getElementById("consenso").textContent = consenso;
+      if (infoMutaciones.length > 0) {
+        document.getElementById("mutaciones").textContent = `⚠️ Mutaciones detectadas:\n` + infoMutaciones.join("\n");
+      }
+    }
+  </script>
+</body>
+</html>
