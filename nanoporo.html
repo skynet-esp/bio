@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Simulación Multiporo (2 poros)</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      background: linear-gradient(135deg, #e0e0e0, #f9f9f9);
+      font-family: 'Roboto', sans-serif;
+      color: #333;
+    }
+    header {
+      background: linear-gradient(90deg, #4a148c, #880e4f);
+      color: white;
+      text-align: center;
+      padding: 1rem;
+      font-size: 2rem;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    main {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 30px;
+      justify-content: center;
+      max-width: 1100px;
+      width: 100%;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      padding: 1rem;
+      transition: transform 0.3s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 520px;
+    }
+    .card:hover {
+      transform: translateY(-5px);
+    }
+    .container {
+      position: relative;
+      width: 500px;
+      height: 100px;
+      margin-bottom: 10px;
+      overflow: hidden;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fafafa;
+    }
+    .strand {
+      position: absolute;
+      top: 50%;
+      left: -1000px;
+      height: 100%;
+      width: 2000px;
+      transform: translateY(-50%);
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+    }
+    .nucleotide {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      margin: 0 2px;
+      box-shadow: 0 0 3px rgba(0,0,0,0.3);
+      transition: transform 0.2s;
+    }
+    .nucleotide:hover {
+      transform: scale(1.2);
+    }
+    .pore {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 100px;
+      height: 100px;
+      background: radial-gradient(circle at center, #888 40%, #555 100%);
+      border-radius: 50%;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+      z-index: 2;
+    }
+    .screen-wrapper {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    .fastq-label {
+      background: #4a148c;
+      color: #fff;
+      font-family: 'Roboto Mono', monospace;
+      padding: 0.5rem;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      box-shadow: 0 0 5px rgba(0,0,0,0.2);
+    }
+    .screen {
+      background: #000;
+      color: #0f0;
+      padding: 0.5rem;
+      font-family: 'Roboto Mono', monospace;
+      font-size: 1.1rem;
+      width: 100%;
+      height: 120px;
+      border-radius: 8px;
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+      white-space: pre-wrap;
+      overflow-y: auto;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+    .controls {
+      text-align: center;
+    }
+    .btn {
+      background: linear-gradient(90deg, #4a148c, #880e4f);
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      margin: 0 5px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 1rem;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+      transition: background 0.3s, transform 0.2s;
+    }
+    .btn:hover {
+      background: linear-gradient(90deg, #6a1b9a, #ad1457);
+      transform: scale(1.05);
+    }
+  </style>
+</head>
+<body>
+<header>Simulación Multiporo</header>
+<main>
+  <div class="row">
+    <div class="card">
+      <h3 style="text-align:center; color:#4a148c;">Poro 1</h3>
+      <div class="container">
+        <div class="strand" id="strand1"></div>
+        <div class="pore"></div>
+      </div>
+      <div class="screen-wrapper">
+        <div class="fastq-label">&gt;fastq_read_1</div>
+        <div class="screen" id="screen1"></div>
+      </div>
+      <div class="controls">
+        <button class="btn" id="startBtn1">Play</button>
+        <button class="btn" id="stopBtn1">Stop</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3 style="text-align:center; color:#4a148c;">Poro 2</h3>
+      <div class="container">
+        <div class="strand" id="strand2"></div>
+        <div class="pore"></div>
+      </div>
+      <div class="screen-wrapper">
+        <div class="fastq-label">&gt;fastq_read_2</div>
+        <div class="screen" id="screen2"></div>
+      </div>
+      <div class="controls">
+        <button class="btn" id="startBtn2">Play</button>
+        <button class="btn" id="stopBtn2">Stop</button>
+      </div>
+    </div>
+  </div>
+</main>
+<script>
+const speed = 1.5;
+const poreCenter = 250;
+const sequenceLength = 80;
+const strands = ['strand1','strand2'];
+const screens = ['screen1','screen2'];
+const startBtns = ['startBtn1','startBtn2'];
+const stopBtns = ['stopBtn1','stopBtn2'];
+
+strands.forEach((strandId, idx) => {
+  let sequence = '';
+  const strandEl = document.getElementById(strandId);
+  const screenEl = document.getElementById(screens[idx]);
+  for (let i = 0; i < sequenceLength; i++) {
+    sequence += ['A','T','C','G'][Math.floor(Math.random() * 4)];
+  }
+  for (let i = 0; i < sequence.length; i++) {
+    const base = document.createElement('div');
+    base.classList.add('nucleotide');
+    base.style.backgroundColor = getColor(sequence[i]);
+    strandEl.appendChild(base);
+  }
+
+  let posX = -sequence.length * 24;
+  let readSequence = '';
+  let basePassed = new Array(sequence.length).fill(false);
+  let animationRunning = true;
+
+  function animate() {
+    if (animationRunning) {
+      posX += speed;
+      strandEl.style.left = `${posX}px`;
+
+      for (let i = 0; i < sequence.length; i++) {
+        const baseCenter = posX + i * 24 + 10;
+        if (!basePassed[i] && baseCenter >= poreCenter - speed && baseCenter < poreCenter + speed) {
+          readSequence += sequence[i];
+          screenEl.textContent = formatFASTQ(readSequence);
+          basePassed[i] = true;
+        }
+      }
+
+      if (posX > 500) {
+        posX = -sequence.length * 24;
+        readSequence = '';
+        screenEl.textContent = '';
+        basePassed.fill(false);
+      }
+    }
+    requestAnimationFrame(animate);
+  }
+  animate();
+
+  document.getElementById(startBtns[idx]).addEventListener('click', () => animationRunning = true);
+  document.getElementById(stopBtns[idx]).addEventListener('click', () => animationRunning = false);
+});
+
+function getColor(base) {
+  switch(base) {
+    case 'A': return '#f00';
+    case 'T': return '#0f0';
+    case 'C': return '#00f';
+    case 'G': return '#ff0';
+    default: return '#fff';
+  }
+}
+
+function formatFASTQ(seq) {
+  const lines = [];
+  for (let i = 0; i < seq.length; i += 60) {
+    let chunk = seq.slice(i, i + 60);
+    if (chunk.length < 60) {
+      chunk = chunk.padEnd(60, '_');
+    }
+    lines.push(chunk);
+  }
+  return lines.join('\n');
+}
+</script>
+</body>
+</html>
